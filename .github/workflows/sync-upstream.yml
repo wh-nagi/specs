@@ -1,0 +1,33 @@
+# Weekly mirror-sync from the ml4t upstream (bus-factor insurance for ALXCMSA).
+#
+# Design (deliberate):
+# - Fast-forward ONLY: the final push is non-force, so if this fork ever carries a
+#   local commit the job FAILS LOUDLY (GitHub emails the owner) instead of silently
+#   creating a merge commit. A mirror must stay a mirror.
+# - Zero secrets: uses only this repo's ephemeral GITHUB_TOKEN (contents: write).
+# - Syncing this mirror changes NOTHING in ALXCMSA production: Lambdas install
+#   exact-pinned wheels from the S3 mirror; adoption of a new upstream version is a
+#   deliberate lockstep pin-bump + parity suite (Rule-12 class), never automatic.
+# - Known GitHub caveat: scheduled workflows are auto-disabled after ~60 days
+#   without repo activity. Sync pushes count as activity, so this only bites if
+#   upstream goes quiet for 60+ days and then resumes — re-enable via the Actions
+#   tab or run scripts/sync_ml4t_forks.sh in alxcmsa (the manual backup path).
+name: sync-upstream
+on:
+  schedule:
+    - cron: '17 4 * * 1'   # Mondays 04:17 UTC
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fast-forward main from ml4t upstream
+        run: |
+          git remote add upstream "https://github.com/ml4t/${GITHUB_REPOSITORY#*/}.git"
+          git fetch upstream main
+          git push origin refs/remotes/upstream/main:refs/heads/main
