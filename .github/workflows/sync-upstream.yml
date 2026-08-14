@@ -1,17 +1,19 @@
 # Weekly mirror-sync from the ml4t upstream (bus-factor insurance for ALXCMSA).
 #
 # Design (deliberate):
-# - Fast-forward ONLY: the final push is non-force, so if this fork ever carries a
-#   local commit the job FAILS LOUDLY (GitHub emails the owner) instead of silently
-#   creating a merge commit. A mirror must stay a mirror.
-# - Zero secrets: uses only this repo's ephemeral GITHUB_TOKEN (contents: write).
+# - Uses GitHub's merge-upstream API: fast-forwards when possible; when this fork's
+#   own commits (this workflow file, prior sync merges) diverge from upstream it
+#   creates a clean merge commit; on a REAL content conflict it returns 409 and the
+#   job FAILS LOUDLY (GitHub emails the owner). The invariant is "fork contains every
+#   upstream commit", not byte-identity — the fork deliberately carries this file.
+# - Zero secrets: only this repo's ephemeral GITHUB_TOKEN (contents: write).
 # - Syncing this mirror changes NOTHING in ALXCMSA production: Lambdas install
-#   exact-pinned wheels from the S3 mirror; adoption of a new upstream version is a
+#   exact-pinned wheels from the S3 mirror; adopting a new upstream version is a
 #   deliberate lockstep pin-bump + parity suite (Rule-12 class), never automatic.
-# - Known GitHub caveat: scheduled workflows are auto-disabled after ~60 days
-#   without repo activity. Sync pushes count as activity, so this only bites if
-#   upstream goes quiet for 60+ days and then resumes — re-enable via the Actions
-#   tab or run scripts/sync_ml4t_forks.sh in alxcmsa (the manual backup path).
+# - Known GitHub caveat: scheduled workflows auto-disable after ~60 days without
+#   repo activity. Sync commits count as activity, so this only bites if upstream
+#   goes quiet 60+ days and then resumes — re-enable via the Actions tab or run
+#   scripts/sync_ml4t_forks.sh in alxcmsa (the manual backup path).
 name: sync-upstream
 on:
   schedule:
@@ -23,11 +25,9 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Fast-forward main from ml4t upstream
+      - name: Merge-upstream main (ff or clean merge; 409 = loud failure)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git remote add upstream "https://github.com/ml4t/${GITHUB_REPOSITORY#*/}.git"
-          git fetch upstream main
-          git push origin refs/remotes/upstream/main:refs/heads/main
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/merge-upstream" \
+            -f branch=main --jq '"\(.merge_type): \(.message)"'
