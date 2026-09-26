@@ -4,9 +4,10 @@
 [![PyPI](https://img.shields.io/pypi/v/ml4t-specs)](https://pypi.org/project/ml4t-specs/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Shared schema and artifact contracts for the ML4T library ecosystem.
+Serializable, runtime-neutral contracts for market data, artifacts, strategy lifecycles, and
+execution across the ML4T library ecosystem.
 
-The stable support matrix is CPython 3.12 through 3.14 on Linux, macOS, and Windows.
+The stable support matrix is CPython 3.12, 3.13, and 3.14 on Linux, macOS, and Windows.
 CPython 3.15 prereleases are tested on all three operating systems but are not advertised as
 stable until Python 3.15 is final.
 
@@ -36,6 +37,27 @@ Today it is used by:
 
 ```bash
 pip install ml4t-specs
+```
+
+## Quick Start
+
+Normalize provider-specific field names into a portable feed contract:
+
+```python
+from ml4t.specs import FeedSpec
+
+feed = FeedSpec.from_mapping(
+    {
+        "time_col": "date",
+        "symbol_col": "ticker",
+        "price_col": "settle",
+        "close_col": "settle",
+        "calendar": "NYSE",
+    }
+)
+assert feed.timestamp_col == "date"
+assert feed.entity_col == "ticker"
+assert feed.price_col == "settle"
 ```
 
 ## Main Types
@@ -170,6 +192,13 @@ uv run ty check
 uv run pytest tests/ -q
 uv build
 ```
+
+## Resources
+
+- [Documentation](https://www.ml4trading.io/docs/specs/)
+- [Issue tracker](https://github.com/ml4t/specs/issues)
+- [Release notes](https://github.com/ml4t/specs/releases)
+- [License](LICENSE)
 
 ## License
 
